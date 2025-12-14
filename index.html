@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RNDM CRUE — Digital Exhibition</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+:root {
+  --glass: rgba(255, 255, 255, 0.18);
+  --border: rgba(255, 255, 255, 0.28);
+  --blur: 40px;
+  --text: #fff;
+  --muted: rgba(255, 255, 255, 0.65);
+  --christmas-red: #ff3a3a;
+  --christmas-green: #2ea94a;
+  --christmas-gold: #ffd700;
+  --christmas-blue: #4a8fe7;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  font-family: 'Inter', system-ui;
+  background: #020304;
+  color: var(--text);
+  overflow: hidden;
+}
+
+/* === SCROLL ENGINE === */
+#scroll {
+  height: 100vh;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  scroll-snap-type: y mandatory;
+}
+
+.slide {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px;
+  position: relative;
+  scroll-snap-align: start;
+  transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 20; /* Выше снега */
+}
+
+/* Individual artist backgrounds */
+.slide:nth-child(1) { background: radial-gradient(ellipse at 20% 30%, #1f3b36 0%, #020304 60%); }
+.slide:nth-child(2) { background: radial-gradient(ellipse at 80% 20%, #2a1c32 0%, #020304 60%); }
+.slide:nth-child(3) { background: radial-gradient(ellipse at 20% 70%, #1c322a 0%, #020304 60%); }
+.slide:nth-child(4) { background: radial-gradient(ellipse at 70% 80%, #322a1c 0%, #020304 60%); }
+.slide:nth-child(5) { background: radial-gradient(ellipse at 50% 50%, #2a1c32 0%, #020304 60%); }
+.slide:nth-child(6) { background: radial-gradient(ellipse at 30% 40%, #1c2a32 0%, #020304 60%); }
+
+/* === BACKGROUND LAYERS === */
+.bg-gradient {
+  position: fixed;
+  inset: 0;
+  background: 
+    radial-gradient(1200px 800px at 15% -10%, rgba(31, 59, 54, 0.3), transparent 60%),
+    radial-gradient(900px 600px at 90% 20%, rgba(42, 28, 50, 0.3), transparent 60%),
+    radial-gradient(700px 500px at 50% 80%, rgba(46, 169, 74, 0.1), transparent 70%),
+    #020304;
+  z-index: -3;
+}
+
+#three {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+}
+
+#noise {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  opacity: .08;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="4"/></filter><rect width="100%" height="100%" filter="url(%23n)"/></svg>') repeat;
+}
+
+/* === CARD === */
+.card {
+  max-width: 1300px;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 90px;
+  padding: 90px;
+  border-radius: 48px;
+  background: linear-gradient(180deg, 
+    rgba(255, 255, 255, 0.3) 0%, 
+    rgba(255, 255, 255, 0.08) 100%);
+  backdrop-filter: blur(var(--blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(180%);
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 30; /* Выше всего */
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.4), 
+    transparent);
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 
+    0 30px 80px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.4);
+}
+
+.reverse {
+  direction: rtl;
+}
+
+.reverse * {
+  direction: ltr;
+}
+
+/* === IMAGE === */
+.image {
+  padding: 8px;
+  border-radius: 34px;
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.4), 
+    rgba(255, 255, 255, 0.08));
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+.image::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(140% 140% at 0% 0%, 
+    rgba(255, 255, 255, 0.4), 
+    transparent 70%);
+  mix-blend-mode: overlay;
+  z-index: 1;
+}
+
+.image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 28px;
+  transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  filter: brightness(1.05) contrast(1.1);
+}
+
+.image:hover img {
+  transform: scale(1.08);
+}
+
+/* === TYPOGRAPHY === */
+h1 {
+  font-size: 80px;
+  letter-spacing: -0.05em;
+  background: linear-gradient(135deg, #fff, #a0d2ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+h2 {
+  font-size: 56px;
+  letter-spacing: -0.04em;
+  margin-bottom: 20px;
+  position: relative;
+  display: inline-block;
+}
+
+h2::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 0;
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--christmas-red), var(--christmas-gold));
+  border-radius: 2px;
+}
+
+p {
+  margin-top: 26px;
+  font-size: 18px;
+  line-height: 1.8;
+  color: var(--muted);
+}
+
+.lyrics {
+  margin-top: 34px;
+  padding: 30px 30px 30px 50px; /* Увеличили левый отступ */
+  border-radius: 22px;
+  background: linear-gradient(135deg, 
+    rgba(0, 0, 0, 0.5), 
+    rgba(0, 0, 0, 0.3));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-style: italic;
+  position: relative;
+  overflow: hidden;
+}
+
+.lyrics::before {
+  content: '❝';
+  position: absolute;
+  top: 15px; /* Сдвинули ниже */
+  left: 15px; /* Сдвинули левее */
+  font-size: 32px; /* Уменьшили размер */
+  opacity: 0.4;
+  z-index: 1;
+}
+
+.lyrics::after {
+  content: '❞';
+  position: absolute;
+  bottom: 15px; /* Сдвинули выше */
+  right: 15px; /* Сдвинули правее */
+  font-size: 32px; /* Уменьшили размер */
+  opacity: 0.4;
+  z-index: 1;
+}
+
+/* === CHRISTMAS TREE ONLY FOR OG BUDA === */
+.christmas-tree {
+  position: absolute;
+  font-size: 52px; /* Увеличили размер */
+  cursor: pointer;
+  filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.8));
+  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 40;
+  animation: treeGlow 3s infinite alternate;
+  right: 60px; /* Позиция для OG Buda */
+  bottom: 60px;
+}
+
+@keyframes treeGlow {
+  0% { 
+    filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.6))
+           drop-shadow(0 0 20px rgba(255, 61, 61, 0.4)); 
+  }
+  100% { 
+    filter: drop-shadow(0 0 20px rgba(255, 61, 61, 0.8))
+           drop-shadow(0 0 30px rgba(255, 215, 0, 0.6)); 
+  }
+}
+
+.christmas-tree:hover {
+  transform: scale(1.4) rotate(-8deg);
+  animation: treeShake 0.5s ease infinite alternate;
+}
+
+@keyframes treeShake {
+  0% { transform: scale(1.4) rotate(-12deg); }
+  100% { transform: scale(1.4) rotate(4deg); }
+}
+
+/* === SNOW - BELOW CARDS === */
+#snow {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10; /* Ниже карточек, но выше фона */
+  opacity: 0.5;
+}
+
+.snowbank {
+  position: fixed;
+  bottom: -80px;
+  left: 0;
+  width: 100%;
+  height: 240px;
+  background: radial-gradient(180% 120% at 50% 0%, 
+    rgba(255, 255, 255, 0.25), 
+    rgba(255, 255, 255, 0.1) 20%, 
+    transparent 60%);
+  z-index: 11; /* Выше снега, но ниже карточек */
+  filter: blur(8px);
+}
+
+/* === SCROLL INDICATOR === */
+.scroll-indicator {
+  position: fixed;
+  right: 30px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.scroll-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.scroll-dot.active {
+  background: var(--christmas-gold);
+  box-shadow: 0 0 10px var(--christmas-gold);
+  transform: scale(1.3);
+}
+
+.scroll-dot::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* === FLOATING ORNAMENTS === */
+.ornament {
+  position: fixed;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  z-index: 1;
+  pointer-events: none;
+  animation: float 15s infinite linear;
+}
+
+@keyframes float {
+  0% { transform: translateY(0) rotate(0deg); }
+  100% { transform: translateY(-100vh) rotate(360deg); }
+}
+
+/* === AUDIO PLAYER === */
+.audio-player {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(20px);
+  border-radius: 30px;
+  padding: 15px 30px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  z-index: 100;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.audio-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.audio-controls button {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.audio-controls button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.1);
+}
+
+.track-info {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  min-width: 200px;
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 900px) {
+  .card {
+    grid-template-columns: 1fr;
+    padding: 50px;
+    gap: 50px;
+  }
+  
+  h1 {
+    font-size: 48px;
+  }
+  
+  h2 {
+    font-size: 40px;
+  }
+  
+  .slide {
+    padding: 40px;
+  }
+  
+  .audio-player {
+    width: 90%;
+    padding: 15px;
+  }
+  
+  .scroll-indicator {
+    right: 15px;
+  }
+  
+  .christmas-tree {
+    right: 30px;
+    bottom: 30px;
+    font-size: 42px;
+  }
+}
+
+/* === ARTIST-SPECIFIC STYLES === */
+.ogbuda-card .image {
+  border: 2px solid rgba(255, 61, 61, 0.3);
+}
+
+.mayot-card .image {
+  border: 2px solid rgba(74, 143, 231, 0.3);
+}
+
+.toxi-card .image {
+  border: 2px solid rgba(46, 169, 74, 0.3);
+}
+
+.onmyneck-card .image {
+  border: 2px solid rgba(255, 215, 0, 0.3);
+}
+
+.rinna-card .image {
+  border: 2px solid rgba(255, 105, 180, 0.3);
+}
+</style>
+</head>
+<body>
+<div class="bg-gradient"></div>
+<canvas id="three"></canvas>
+<canvas id="snow"></canvas>
+<div id="noise"></div>
+<div class="snowbank"></div>
+
+<!-- Floating ornaments -->
+<div id="ornaments"></div>
+
+<!-- Scroll indicator -->
+<div class="scroll-indicator">
+  <div class="scroll-dot active" data-slide="0"></div>
+  <div class="scroll-dot" data-slide="1"></div>
+  <div class="scroll-dot" data-slide="2"></div>
+  <div class="scroll-dot" data-slide="3"></div>
+  <div class="scroll-dot" data-slide="4"></div>
+  <div class="scroll-dot" data-slide="5"></div>
+</div>
+
+<div id="scroll">
+
+<!-- HERO -->
+<section class="slide">
+  <div class="card">
+    <h1>RNDM CRUE</h1>
+    <p>Цифровая выставка. Музыка как среда, артисты как состояния.</p>
+  </div>
+</section>
+
+<!-- OG BUDA -->
+<section class="slide" data-track="audio/ogbuda.mp3">
+  <div class="card ogbuda-card">
+    <div class="image"><img src="images/ogbuda.jpg"></div>
+    <div>
+      <h2>OG Buda</h2>
+      <p>«Я не делаю тренды — я оставляю след»</p>
+      <div class="lyrics">"В этом холоде мы выросли быстрее"</div>
+      <div class="christmas-tree" onclick="window.open('https://music.yandex.ru/album/39393015?utm_source=web&utm_medium=copy_link','_blank')">
+        🎄
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MAYOT -->
+<section class="slide" data-track="audio/mayot.mp3">
+  <div class="card reverse mayot-card">
+    <div class="image"><img src="images/mayot.jpg"></div>
+    <div>
+      <h2>MAYOT</h2>
+      <p>«Мне важно, чтобы в музыке было уязвимо»</p>
+      <div class="lyrics">"Я не прячусь в словах — я в них тону"</div>
+    </div>
+  </div>
+</section>
+
+<!-- TOXI -->
+<section class="slide" data-track="audio/toxi.mp3">
+  <div class="card toxi-card">
+    <div class="image"><img src="images/toxi.jpg"></div>
+    <div>
+      <h2>Toxi$</h2>
+      <p>«Звук может быть грязным — в этом его честность»</p>
+      <div class="lyrics">"Мир ломается в ритм"</div>
+    </div>
+  </div>
+</section>
+
+<!-- 163 -->
+<section class="slide" data-track="audio/163.mp3">
+  <div class="card reverse onmyneck-card">
+    <div class="image"><img src="images/163.jpg"></div>
+    <div>
+      <h2>163ONMYNECK</h2>
+      <p>«Тишина — тоже инструмент»</p>
+      <div class="lyrics">"Меньше слов — больше эха"</div>
+    </div>
+  </div>
+</section>
+
+<!-- RINNA -->
+<section class="slide" data-track="audio/rinna.mp3">
+  <div class="card rinna-card">
+    <div class="image"><img src="images/rinna.jpg"></div>
+    <div>
+      <h2>Inst Rinna</h2>
+      <p>Звук как пространство. Музыка без центра, но с направлением.</p>
+      <div class="lyrics">«Иногда важно не сыграть»</div>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<!-- Audio Player -->
+<div class="audio-player">
+  <div class="track-info">
+    <div id="current-track">Выберите артиста</div>
+    <div id="artist-name"></div>
+  </div>
+  <div class="audio-controls">
+    <button id="prev-btn"><i class="fas fa-step-backward"></i></button>
+    <button id="play-pause-btn"><i class="fas fa-play"></i></button>
+    <button id="next-btn"><i class="fas fa-step-forward"></i></button>
+    <button id="volume-btn"><i class="fas fa-volume-up"></i></button>
+  </div>
+</div>
+
+<audio id="player" crossorigin="anonymous"></audio>
+
+<script>
+// === GLOBAL VARIABLES ===
+const player = document.getElementById('player');
+const slides = document.querySelectorAll('.slide');
+const scrollDots = document.querySelectorAll('.scroll-dot');
+const playPauseBtn = document.getElementById('play-pause-btn');
+const prevBtn = document.getElementById('prev-btn');
+const nextBtn = document.getElementById('next-btn');
+const volumeBtn = document.getElementById('volume-btn');
+const currentTrackEl = document.getElementById('current-track');
+const artistNameEl = document.getElementById('artist-name');
+let currentSlide = 0;
+let isPlaying = false;
+
+// === AUDIO PLAYER ===
+function playTrack(trackUrl, artistName, trackName) {
+  if (trackUrl) {
+    player.src = trackUrl;
+    player.play()
+      .then(() => {
+        isPlaying = true;
+        playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+        currentTrackEl.textContent = trackName || 'Трек артиста';
+        artistNameEl.textContent = artistName;
+      })
+      .catch(e => console.log('Autoplay prevented:', e));
+  }
+}
+
+playPauseBtn.addEventListener('click', () => {
+  if (isPlaying) {
+    player.pause();
+    playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+  } else {
+    player.play();
+    playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+  }
+  isPlaying = !isPlaying;
+});
+
+prevBtn.addEventListener('click', () => {
+  currentSlide = (currentSlide - 1 + slides.length) % slides.length;
+  scrollToSlide(currentSlide);
+});
+
+nextBtn.addEventListener('click', () => {
+  currentSlide = (currentSlide + 1) % slides.length;
+  scrollToSlide(currentSlide);
+});
+
+volumeBtn.addEventListener('click', () => {
+  player.muted = !player.muted;
+  volumeBtn.innerHTML = player.muted ? 
+    '<i class="fas fa-volume-mute"></i>' : 
+    '<i class="fas fa-volume-up"></i>';
+});
+
+// === SCROLL MANAGEMENT ===
+function scrollToSlide(index) {
+  currentSlide = index;
+  slides[index].scrollIntoView({ 
+    behavior: 'smooth', 
+    block: 'start' 
+  });
+  updateScrollDots(index);
+  
+  // Play track if available
+  const track = slides[index].dataset.track;
+  const artist = slides[index].querySelector('h2')?.textContent || '';
+  if (track) {
+    playTrack(track, artist, '');
+  }
+}
+
+// Update scroll dots
+function updateScrollDots(activeIndex) {
+  scrollDots.forEach((dot, index) => {
+    if (index === activeIndex) {
+      dot.classList.add('active');
+    } else {
+      dot.classList.remove('active');
+    }
+  });
+}
+
+// Click on dots
+scrollDots.forEach((dot, index) => {
+  dot.addEventListener('click', () => scrollToSlide(index));
+});
+
+// Intersection Observer for auto-play
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+      const index = Array.from(slides).indexOf(entry.target);
+      currentSlide = index;
+      updateScrollDots(index);
+      
+      const track = entry.target.dataset.track;
+      const artist = entry.target.querySelector('h2')?.textContent || '';
+      if (track && !player.src.includes(track)) {
+        playTrack(track, artist, '');
+      }
+    }
+  });
+}, { threshold: [0.4, 0.6, 0.8] });
+
+slides.forEach(slide => io.observe(slide));
+
+// === SNOW EFFECT ===
+const snow = document.getElementById('snow');
+const ctx = snow.getContext('2d');
+let w, h;
+const flakes = [];
+
+function resize() {
+  w = snow.width = innerWidth;
+  h = snow.height = innerHeight;
+}
+
+resize();
+onresize = resize;
+
+// Create snowflakes with different properties
+for (let i = 0; i < 250; i++) {
+  flakes.push({
+    x: Math.random() * w,
+    y: Math.random() * h,
+    r: Math.random() * 2.5 + 0.8,
+    s: Math.random() * 0.7 + 0.2,
+    o: Math.random() * 0.4 + 0.2, // Более прозрачные
+    sway: Math.random() * 1.5 - 0.75
+  });
+}
+
+function drawSnow() {
+  ctx.clearRect(0, 0, w, h);
+  
+  // Draw snowflakes
+  flakes.forEach(f => {
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 255, 255, ${f.o})`;
+    ctx.fill();
+    
+    // Move snowflake
+    f.y += f.s;
+    f.x += Math.sin(f.y * 0.01) * f.sway;
+    
+    // Reset if out of bounds
+    if (f.y > h) {
+      f.y = -10;
+      f.x = Math.random() * w;
+    }
+    if (f.x > w) f.x = 0;
+    if (f.x < 0) f.x = w;
+  });
+  
+  requestAnimationFrame(drawSnow);
+}
+
+drawSnow();
+
+// === THREE.JS FOG EFFECT ===
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 1, 1000);
+camera.position.z = 200;
+
+const renderer = new THREE.WebGLRenderer({ 
+  canvas: document.getElementById('three'), 
+  alpha: true, 
+  antialias: true 
+});
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+// Create fog geometry
+const geo = new THREE.PlaneGeometry(400, 400, 50, 50);
+const mat = new THREE.MeshBasicMaterial({ 
+  color: 0xffffff, 
+  wireframe: true, 
+  opacity: 0.06, 
+  transparent: true 
+});
+const mesh = new THREE.Mesh(geo, mat);
+scene.add(mesh);
+
+// Animation loop
+function animate() {
+  mesh.rotation.z += 0.0005;
+  mesh.rotation.x += 0.0002;
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+
+animate();
+
+// === CHRISTMAS ORNAMENTS ===
+function createOrnaments() {
+  const ornamentsContainer = document.getElementById('ornaments');
+  const colors = ['#ff3a3a', '#2ea94a', '#ffd700', '#4a8fe7', '#ff69b4'];
+  
+  for (let i = 0; i < 15; i++) {
+    const ornament = document.createElement('div');
+    ornament.className = 'ornament';
+    ornament.style.left = `${Math.random() * 100}vw`;
+    ornament.style.animationDelay = `${Math.random() * 10}s`;
+    ornament.style.animationDuration = `${15 + Math.random() * 20}s`;
+    ornament.style.background = `radial-gradient(circle at 30% 30%, ${colors[Math.floor(Math.random() * colors.length)]}, transparent 70%)`;
+    ornament.style.boxShadow = `0 0 8px ${colors[Math.floor(Math.random() * colors.length)]}`;
+    ornament.style.width = `${8 + Math.random() * 15}px`;
+    ornament.style.height = ornament.style.width;
+    ornament.style.opacity = '0.4';
+    ornamentsContainer.appendChild(ornament);
+  }
+}
+
+createOrnaments();
+
+// === KEYBOARD NAVIGATION ===
+document.addEventListener('keydown', (e) => {
+  switch(e.key) {
+    case 'ArrowUp':
+      e.preventDefault();
+      currentSlide = (currentSlide - 1 + slides.length) % slides.length;
+      scrollToSlide(currentSlide);
+      break;
+    case 'ArrowDown':
+      e.preventDefault();
+      currentSlide = (currentSlide + 1) % slides.length;
+      scrollToSlide(currentSlide);
+      break;
+    case ' ':
+      e.preventDefault();
+      playPauseBtn.click();
+      break;
+  }
+});
+
+// === INITIAL SETUP ===
+// Auto-play first track if available
+setTimeout(() => {
+  const firstTrack = slides[0].dataset.track;
+  if (firstTrack) {
+    playTrack(firstTrack, 'RNDM CRUE', 'Премьера выставки');
+  }
+}, 1000);
+</script>
+</body>
+</html>
